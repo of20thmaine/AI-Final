@@ -1,5 +1,6 @@
 package test;
 
+import java.util.List;
 import mnist.MnistDataReader;
 import mnist.MnistMatrix;
 import radial.*;
@@ -15,6 +16,7 @@ public class Test {
 //		quickMnistTest();
 		mnistTest();
 //		mnistEpochalTest();
+//		printer();
 	}
 	
 	/**
@@ -78,12 +80,37 @@ public class Test {
 		}
 	}
 	
+	public static void printer() {
+		try {
+			MnistMatrix[] mnistMatrix = new MnistDataReader().readData("./resources/mnistdata/train-images.idx3-ubyte",
+																   "./resources/mnistdata/train-labels.idx1-ubyte");
+			
+			Feature[] features = new Feature[mnistMatrix.length];
+			
+			for (int i = 0; i < mnistMatrix.length; ++i) {
+				if (i > 40000) {
+					features[i] = new Feature(mnistMatrix[i].getData());
+					
+					if (mnistMatrix[i].getLabel() == 3) {
+						List<Point> points = features[i].getPoints();
+						for (Point p : points) {
+							System.out.println("[" + p.getX() + "," + p.getY() + "," + (255.0 - (p.getValue() * 255)) + "],");
+						}
+						return;
+					}
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public static void mnistTest() {
 		try {
 			MnistMatrix[] mnistMatrix = new MnistDataReader().readData("./resources/mnistdata/train-images.idx3-ubyte",
 																   "./resources/mnistdata/train-labels.idx1-ubyte");
 			
-			double globalVigilance = 0.98;
+			double globalVigilance = 0.89;
 			
 			AdaptiveResonance model = new AdaptiveResonance(globalVigilance, 0.0);
 			

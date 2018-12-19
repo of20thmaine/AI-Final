@@ -19,7 +19,7 @@ import java.util.List;
 public class Feature {
 	
 	private List<Point> points;
-	private double meanX, meanY, minI, maxI, minJ, maxJ, distance;
+	private double meanX, meanY, minI, maxI, minJ, maxJ, distanceX, avgColor, colorVariance;
 	private int count;
 	private Point meanPoint;
 	private double[] representation;
@@ -34,6 +34,7 @@ public class Feature {
 	
 	private void setPoints(int[][] matrix) {
 		points = new ArrayList<Point>();
+		avgColor = 0;
 		
 		for (int i = 0; i < matrix.length; ++i) {
 			for (int j = 0; j < matrix[i].length; ++j) {
@@ -42,9 +43,11 @@ public class Feature {
 					meanY += (j+1);
 					count++;
 					points.add(new Point(i+1, j+1, matrix[i][j]/255.0));
+					avgColor += matrix[i][j];
 				}
 			}
 		}
+		avgColor /= count;
 		meanX /= count;
 		meanY /= count;
 		meanPoint = new Point(meanX, meanY, 0);
@@ -52,14 +55,17 @@ public class Feature {
 	
 	private void normalize() {
 		double xDev = 0.0, yDev = 0.0;
+		colorVariance = 0;
 		
 		for (Point p : points) {
 			xDev += Math.pow(p.getX() - meanPoint.getX(), 2);
 			yDev += Math.pow(p.getY() - meanPoint.getY(), 2);
+			colorVariance += Math.pow(avgColor-p.getValue(), 2);
 		}
 		
 		xDev = Math.sqrt(xDev/count);
 		yDev = Math.sqrt(yDev/count);
+		colorVariance = Math.sqrt(colorVariance/count);
 		maxI = 0; minI = Double.MAX_VALUE;
 		
 		for (Point p : points) {
@@ -71,17 +77,26 @@ public class Feature {
 			if (p.getX() < maxI) {
 				maxI = p.getX();
 			}
+			if (p.getY() < minJ) {
+				minJ = p.getY();
+			}
+			if (p.getY() > maxJ) {
+				maxJ = p.getY();
+			}
 		}
 		
 		meanPoint = new Point(0,0,0);
 	}
 	
 	private void rotate() {
-		distance = maxI - minI;
-		double bestRotation = 0;
-		maxI = 0; minI = Double.MAX_VALUE;
+		distanceX = maxI - minI;
 		
-		for (double i = 1.0; i <= 15.0; i += 3.0) {
+		double bestRotationX = 0;
+		
+		for (double i = -30.0; i <= 30.0; i += 1.0) {
+			maxI = Double.MIN_VALUE; minI = Double.MAX_VALUE;
+			maxJ = Double.MIN_VALUE; minJ = Double.MAX_VALUE;
+			
 			for (Point p : points) {
 				p.rotate(meanPoint, i);
 				
@@ -93,39 +108,18 @@ public class Feature {
 				}
 			}
 			
-			if (maxI-minI < distance) {
-				distance = maxI-minI;
-				bestRotation = i;
+			if (maxI-minI < distanceX) {
+				distanceX = maxI-minI;
+				bestRotationX = i;
 			}
 
-			i *= -1;
-			maxI = 0; minI = Double.MAX_VALUE;
-			
-			for (Point p : points) {
-				p.rotate(meanPoint, i);
-				
-				if (p.getRotateX() < minI) {
-					minI = p.getRotateX();
-				}
-				if (p.getRotateX() > maxI) {
-					maxI = p.getRotateX();
-				}
-			}
-			
-			if (maxI-minI < distance) {
-				distance = maxI-minI;
-				bestRotation = i;
-			}
-			
-			maxI = 0; minI = Double.MAX_VALUE;
-			i *= -1;
 		}
 		
-		maxI = 0; minI = Double.MAX_VALUE;
-		maxJ = 0; minJ = Double.MAX_VALUE;
+		maxI = Double.MIN_VALUE; minI = Double.MAX_VALUE;
+		maxJ = Double.MIN_VALUE; minJ = Double.MAX_VALUE;
 		
 		for (Point p : points) {
-			p.setRotate(meanPoint, bestRotation);
+			p.setRotate(meanPoint, bestRotationX);
 			
 			if (p.getX() < minI) {
 				minI = p.getX();
@@ -144,11 +138,16 @@ public class Feature {
 	}
 	
 	private void polarDescription() {
-		int numPoints = 16; int subDivs = 5;
-		double distance = Math.max(minJ, maxJ);
+		int numPoints = 16; int subDivs = 6;
+		double distance = Math.max(Math.max(
+				Math.abs(maxI),
+				Math.abs(minI)), Math.max(
+				Math.abs(maxJ),
+				Math.abs(minJ)));
 		
 		double angle = 0;
-		double iters = 360 / numPoints;
+		double deltaA = 360 / numPoints;
+		double deltaD = distance / subDivs;
 		
 		Point[] circle = new Point[numPoints * subDivs];
 		representation = new double[numPoints * subDivs];
@@ -156,11 +155,11 @@ public class Feature {
 		int k = 0;
 		for (int i = 0; i < numPoints; ++i) {
 			for (int j = 1; j <= subDivs; ++j) {
-				circle[k] = new Point(meanPoint.getX() + (distance/j) * Math.cos(Math.toRadians(angle)),
-						  meanPoint.getY() + (distance/j) * Math.sin(Math.toRadians(angle)), 0);
+				circle[k] = new Point(meanPoint.getX() + (j*deltaD) * Math.cos(Math.toRadians(angle)),
+						  meanPoint.getY() + (j*deltaD) * Math.sin(Math.toRadians(angle)), 0);
 				k++;
 			}
-			angle += iters;
+			angle += deltaA;
 		}
 		
 		for (Point p : points) {
@@ -184,27 +183,29 @@ public class Feature {
 	}
 	
 	public double compare(Feature c) {
-		double error = 0.0;
+		double avgDiff = 0;
 		
 		for (int i = 0; i < representation.length; ++i) {
-			error += Math.pow(representation[i] - c.representation[i], 2);
+			avgDiff += Math.pow(representation[i] - c.representation[i], 2);
 		}
-		
-		return 1.0 - error;
+		return 1.0 / (1.0 + Math.sqrt(avgDiff));
 	}
 	
 	public double compare(double[] c) {
-		double error = 0.0;
+		double avgDiff = 0;
 		
 		for (int i = 0; i < representation.length; ++i) {
-			error += Math.pow(representation[i] - c[i], 2);
+			avgDiff += Math.pow(representation[i] - c[i], 2);
 		}
-		
-		return 1.0 - error;
+		return 1.0 / (1.0 + Math.sqrt(avgDiff));
 	}
 	
 	public double[] getRepresentation() {
 		return representation;
+	}
+	
+	public List<Point> getPoints() {
+		return points;
 	}
 	
 	public String toString() {

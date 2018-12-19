@@ -108,6 +108,7 @@ public class AdaptiveResonance {
 			
 			if (label == fLabel) {
 				if (similarity > vigilance) {
+					this.resonate(f, learningRate);
 					return true;
 				}
 				return false;
@@ -135,6 +136,7 @@ public class AdaptiveResonance {
 				cluster[i] += ((cluster[i] - bin2[i]) * learningRate);
 			}
 		}
+		
 		
 		public double getSimilarity() {
 			return similarity;

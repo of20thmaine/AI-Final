@@ -5,6 +5,7 @@ package radial;
  * Class serves as representation of Cartesian point data.
  */
 public class Point {
+	
 	private double x, y, value;
 	private double rotateX, rotateY, distanceToMean;
 	
@@ -26,6 +27,16 @@ public class Point {
 		return value;
 	}
 	
+	public void normalizeValue(double averageColor, double colorVariance) {
+		if (Math.abs(value - averageColor) <= colorVariance) {
+			value = 1.0;
+		} else if (Math.abs(value - averageColor) <= colorVariance*2) {
+			value = 0.8;
+		} else {
+			value = 0.4;
+		}
+	}
+	
 	public void rotate(Point mean, double angleDeg) {
 		double angleRad = (angleDeg / 180) * Math.PI;
 	    double cosAngle = Math.cos(angleRad);
@@ -37,15 +48,11 @@ public class Point {
 	    rotateY = mean.y + (dx*sinAngle+dy*cosAngle);
 	}
 	
-	public void setRotate(Point mean, double angleDeg) {
-		double angleRad = (angleDeg / 180) * Math.PI;
-	    double cosAngle = Math.cos(angleRad);
-	    double sinAngle = Math.sin(angleRad);
-	    double dx = (x - mean.x);
-	    double dy = (y - mean.y);
+	public void setRotate(Point mean, double angleDegX) {
+		this.rotate(mean, angleDegX);
 
-	    x = mean.x + (dx*cosAngle-dy*sinAngle);
-	    y = mean.y + (dx*sinAngle+dy*cosAngle);
+		x = rotateX;
+		y = rotateY;
 	}
 	
 	public double getRotateX() {
