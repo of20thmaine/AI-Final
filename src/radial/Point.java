@@ -38,7 +38,7 @@ public class Point {
 	}
 	
 	public void rotate(Point mean, double angleDeg) {
-		double angleRad = (angleDeg / 180) * Math.PI;
+	    double angleRad = (angleDeg / 180) * Math.PI;
 	    double cosAngle = Math.cos(angleRad);
 	    double sinAngle = Math.sin(angleRad);
 	    double dx = (x - mean.x);
